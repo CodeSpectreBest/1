@@ -20,12 +20,14 @@ local Window = Rayfield:CreateWindow({
 
 -- Player tab ve sliderlar
 local PlayerTab = Window:CreateTab("Player", 4483362458)
+
+-- 1. WalkSpeed Kaydırıcısı
 PlayerTab:CreateSlider({
     Name = "WalkSpeed",
     Range = {10,100},
     Increment = 1,
     Suffix = "Speed",
-    CurrentValue = 10,
+    CurrentValue = 16,
     Callback = function(Value)
         local char = game.Players.LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") then
@@ -33,6 +35,8 @@ PlayerTab:CreateSlider({
         end
     end,
 })
+
+-- 2. JumpPower Kaydırıcısı
 PlayerTab:CreateSlider({
     Name = "JumpPower",
     Range = {20,200},
@@ -47,7 +51,75 @@ PlayerTab:CreateSlider({
     end,
 })
 
--- 3. şahıs kamera
+-- 3. FOV/Zoom Ayarı Kaydırıcısı
+PlayerTab:CreateSlider({
+    Name = "FOV/Zoom Ayarı",
+    Range = {30, 120},
+    Increment = 1,
+    Suffix = "Derece",
+    CurrentValue = 70,
+    Callback = function(Value)
+        local cam = workspace.CurrentCamera
+        if cam then
+            cam.FieldOfView = Value
+        end
+    end,
+})
+
+-- 4. YENİ EKLENTİ: Fly (Uçma) Açma/Kapama Tuşu
+local flyConnection = nil
+local flySpeed = 50 -- Uçma hızı (istenirse buna da slider eklenebilir)
+
+PlayerTab:CreateToggle({
+    Name = "Fly (Uçma)",
+    CurrentValue = false,
+    Callback = function(Toggled)
+        local player = game.Players.LocalPlayer
+        local char = player.Character
+        
+        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+        local hrp = char.HumanoidRootPart
+        local humanoid = char:FindFirstChild("Humanoid")
+
+        if Toggled then
+            if humanoid then
+                humanoid.PlatformStand = true -- Karakterin yere basmasını engeller
+            end
+            
+            -- Uçuş döngüsünü başlat
+            flyConnection = game:GetService("RunService").RenderStepped:Connect(function()
+                -- WASD input'una göre hareket yönünü hesapla
+                local moveVector = player.MoveDirection
+                local camCFrame = workspace.CurrentCamera.CFrame
+                
+                -- Karakteri, kamera yönüne göre hareket ettir
+                local velocity = camCFrame.LookVector * moveVector.Z + camCFrame.RightVector * moveVector.X
+                
+                -- Yukarı (Space) ve Aşağı (Shift) tuşlarını kontrol et
+                if player:GetMouse().KeyUp and player:GetMouse().KeyUp.KeyCode == Enum.KeyCode.Space then
+                    velocity = velocity + Vector3.new(0, 1, 0)
+                elseif player:GetMouse().KeyDown and player:GetMouse().KeyDown.KeyCode == Enum.KeyCode.LeftShift then
+                    velocity = velocity + Vector3.new(0, -1, 0)
+                end
+                
+                -- Karakteri hareket ettir
+                hrp.AssemblyLinearVelocity = velocity.unit * flySpeed
+            end)
+        else
+            -- Uçuşu durdur
+            if flyConnection then
+                flyConnection:Disconnect()
+                flyConnection = nil
+            end
+            if humanoid then
+                humanoid.PlatformStand = false -- Karakteri yere indirir
+            end
+            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0) -- Hızı sıfırla
+        end
+    end,
+})
+
+-- 3. şahıs kamera (Değişmedi)
 local player = game.Players.LocalPlayer
 local camera = workspace.CurrentCamera
 local runService = game:GetService("RunService")
