@@ -70,35 +70,53 @@ local JumpSlider = PlayerTab:CreateSlider({
 
 local player = game.Players.LocalPlayer
 local camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
--- Zoom ayarları
-local minZoom = 20
-local maxZoom = 70
-local zoomStep = 5
-local zoomActive = false
+-- ===== HUB GUI =====
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "HubGui"
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Buton referansı
-local button = player:WaitForChild("PlayerGui"):WaitForChild("ScreenGui"):WaitForChild("ZoomButton")
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0.4,0,0.4,0)
+frame.Position = UDim2.new(0.3,0,0.3,0)
+frame.BackgroundColor3 = Color3.fromRGB(50,50,50)
+frame.Parent = screenGui
 
--- Başlangıç FOV
-camera.FieldOfView = maxZoom
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0.3,0)
+title.Text = "HUB MENU"
+title.TextScaled = true
+title.BackgroundTransparency = 1
+title.Parent = frame
 
--- Butona basıldığında aç/kapat
+-- Buton örneği
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0.8,0,0.2,0)
+button.Position = UDim2.new(0.1,0,0.5,0)
+button.Text = "KAPAT / AÇ"
+button.Parent = frame
+
+-- ===== 3. ŞAHSIS KAMERA =====
+camera.CameraType = Enum.CameraType.Scriptable
+
+local function updateCamera()
+    local character = player.Character
+    if character then
+        local root = character:FindFirstChild("HumanoidRootPart")
+        if root then
+            -- Karakterin arkasına ve biraz yukarıya kamera
+            camera.CFrame = CFrame.new(root.Position + Vector3.new(0,5,10), root.Position)
+        end
+    end
+end
+
+RunService.RenderStepped:Connect(updateCamera)
+
+-- ===== HUB BUTONU İLE GİZLE/GÖSTER =====
+local hubVisible = true
 button.MouseButton1Click:Connect(function()
-    zoomActive = not zoomActive
-    if zoomActive then
-        button.Text = "ZOOM ON"
-    else
-        button.Text = "ZOOM"
-        camera.FieldOfView = maxZoom -- kapatınca eski FOV
-    end
-end)
-
--- Fare tekerleği ile zoom
-UserInputService.InputChanged:Connect(function(input, gameProcessed)
-    if not zoomActive then return end
-    if input.UserInputType == Enum.UserInputType.MouseWheel then
-        camera.FieldOfView = math.clamp(camera.FieldOfView - input.Position.Z, minZoom, maxZoom)
-    end
+    hubVisible = not hubVisible
+    frame.Visible = hubVisible
 end)
