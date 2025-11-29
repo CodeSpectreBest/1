@@ -70,39 +70,35 @@ local JumpSlider = PlayerTab:CreateSlider({
 
 local player = game.Players.LocalPlayer
 local camera = workspace.CurrentCamera
-local runService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
-local cameraDistance = 12
-local cameraHeight = 3
-local cameraOffset = Vector3.new(0, cameraHeight, 0)
+-- Zoom ayarları
+local minZoom = 20
+local maxZoom = 70
+local zoomStep = 5
+local zoomActive = false
 
--- GUI
-local gui = player:WaitForChild("PlayerGui"):WaitForChild("ThirdPersonHubGUI")
-local button = gui:WaitForChild("EnableButton")
+-- Buton referansı
+local button = player:WaitForChild("PlayerGui"):WaitForChild("ScreenGui"):WaitForChild("ZoomButton")
 
-local cameraActive = false
-local updateConnection
+-- Başlangıç FOV
+camera.FieldOfView = maxZoom
 
--- Kamera güncelleme fonksiyonu
-local function updateCamera()
-    local character = player.Character
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        local hrp = character.HumanoidRootPart
-        local cameraPosition = hrp.Position - hrp.CFrame.LookVector * cameraDistance + cameraOffset
-        camera.CFrame = CFrame.new(cameraPosition, hrp.Position + cameraOffset)
-    end
-end
-
--- Buton tıklama fonksiyonu
+-- Butona basıldığında aç/kapat
 button.MouseButton1Click:Connect(function()
-    cameraActive = not cameraActive
-    if cameraActive then
-        button.Text = "3rd Person Açık"
-        updateConnection = runService.RenderStepped:Connect(updateCamera)
+    zoomActive = not zoomActive
+    if zoomActive then
+        button.Text = "ZOOM ON"
     else
-        button.Text = "3rd Person Aç"
-        if updateConnection then
-            updateConnection:Disconnect()
-        end
+        button.Text = "ZOOM"
+        camera.FieldOfView = maxZoom -- kapatınca eski FOV
+    end
+end)
+
+-- Fare tekerleği ile zoom
+UserInputService.InputChanged:Connect(function(input, gameProcessed)
+    if not zoomActive then return end
+    if input.UserInputType == Enum.UserInputType.MouseWheel then
+        camera.FieldOfView = math.clamp(camera.FieldOfView - input.Position.Z, minZoom, maxZoom)
     end
 end)
