@@ -22,7 +22,8 @@ local Window = Rayfield:CreateWindow({
 local player = game.Players.LocalPlayer
 local camera = workspace.CurrentCamera
 local runService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService") -- YENİ EKLENTİ: Girişleri kontrol etmek için
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
 
 -- Player tab ve sliderlar
 local PlayerTab = Window:CreateTab("Player", 4483362458)
@@ -71,7 +72,7 @@ PlayerTab:CreateSlider({
     end,
 })
 
--- 4. Fly (Uçma) Açma/Kapama Tuşu (Düzeltilmiş)
+-- 4. Fly (Uçma) Açma/Kapama Tuşu (Düzeltildi)
 local flyConnection = nil
 local flySpeed = 50 
 
@@ -86,49 +87,48 @@ PlayerTab:CreateToggle({
 
         if Toggled then
             if humanoid then
-                humanoid.PlatformStand = true -- Karakterin yere basmasını engeller
+                humanoid.PlatformStand = true
+                humanoid.Sit = true -- Daha stabil olması için eklendi
             end
             
-            -- Uçuş döngüsünü başlat
-            flyConnection = runService.RenderStepped:Connect(function()
-                -- Yatay hareket (WASD)
-                local moveVector = player.MoveDirection
-                local camCFrame = camera.CFrame
-                
-                -- Karakteri, kamera yönüne göre hareket ettir
-                local velocity = camCFrame.LookVector * moveVector.Z + camCFrame.RightVector * moveVector.X
-                
-                -- Dikey hareket (Space ve Shift) - ARTIK UserInputService KULLANILIYOR
-                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                    velocity = velocity + Vector3.new(0, 1, 0) -- Yukarı
-                end
-                if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-                    velocity = velocity + Vector3.new(0, -1, 0) -- Aşağı
-                end
-                
-                -- Karakteri hareket ettir
-                if velocity.Magnitude > 0 then
-                    hrp.AssemblyLinearVelocity = velocity.unit * flySpeed
-                else
-                    hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0) -- Hareketsizken durmasını sağla
-                end
+            flyConnection = runService.RenderStepped:Connect(function(dt)
+                local success, err = pcall(function() -- Hata yakalama eklendi
+                    local velocity = Vector3.new(0, 0, 0)
+                    local camCFrame = camera.CFrame
+                    local forward = camCFrame.LookVector
+                    local right = camCFrame.RightVector
+                    
+                    if UserInputService:IsKeyDown(Enum.KeyCode.W) then velocity = velocity + forward end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.S) then velocity = velocity - forward end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.D) then velocity = velocity + right end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.A) then velocity = velocity - right end
+                    
+                    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then velocity = velocity + Vector3.new(0, 1, 0) end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then velocity = velocity - Vector3.new(0, 1, 0) end
+                    
+                    if velocity.Magnitude > 0 then
+                        hrp.CFrame = hrp.CFrame + velocity.unit * flySpeed * dt
+                    end
+                end)
+                if not success then warn("Fly Hata:", err) end
             end)
         else
-            -- Uçuşu durdur
             if flyConnection then flyConnection:Disconnect() end
-            if humanoid then humanoid.PlatformStand = false end
-            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            if humanoid then 
+                humanoid.PlatformStand = false
+                humanoid.Sit = false
+            end
         end
     end,
 })
 
--- 5. 3. Şahıs Kamera Kontrolü
+-- 5. 3. Şahıs Kamera Kontrolü (Düzeltildi)
 local cameraConnection = nil
 local cameraDistance = 12
 local cameraHeight = 3
 local cameraOffset = Vector3.new(0, cameraHeight, 0)
 
-local function updateCamera()
+local function updateCameraLogic()
     local character = player.Character
     if character and character:FindFirstChild("HumanoidRootPart") then
         local hrp = character.HumanoidRootPart
@@ -142,8 +142,13 @@ PlayerTab:CreateToggle({
     CurrentValue = false,
     Callback = function(Toggled)
         if Toggled then
+            StarterGui:SetCore("DevEnableMouseLock", false)
             camera.CameraType = Enum.CameraType.Scriptable
-            cameraConnection = runService.RenderStepped:Connect(updateCamera)
+            
+            cameraConnection = runService.RenderStepped:Connect(function()
+                local success, err = pcall(updateCameraLogic) -- Hata yakalama eklendi
+                if not success then warn("Kamera Hata:", err) end
+            end)
         else
             camera.CameraType = Enum.CameraType.Custom
             if cameraConnection then cameraConnection:Disconnect() end
